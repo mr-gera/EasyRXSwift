@@ -23,13 +23,14 @@ class Event {
 extension Event {
     struct EventName {
         static let onClick = "onClick"
+        static let onGesture = "onGesture"
     }
 }
 
 class EventDispatcher {
     
     // MARK: - Alias for OnEvent pattern
-    typealias OnEvent = (_ event: Event) -> Void
+    public typealias OnEvent = (_ event: Event) -> Void
     
     
     // MARK: - Private Properties
@@ -105,31 +106,80 @@ extension NSObject {
         
         get {
             
-            let dispatcher = EventDispatcher.sharedPrivate.registerNewDispatcher(self)
-            
-            if let view = self as? UIView {
-                
-                if dispatcher.data as? UITapGestureRecognizer != nil{
-                    return dispatcher
-                }
-                
-                if let recoOld = dispatcher.data as? UITapGestureRecognizer {
-                    view.removeGestureRecognizer(recoOld)
-                }
-                
-                let recognizer = UITapGestureRecognizer(target: self, action: #selector(self.touchGesture))
-                
-                dispatcher.data = recognizer
-                
-                view.addGestureRecognizer(recognizer)
-            }
+           let dispatcher = EventDispatcher.sharedPrivate.registerNewDispatcher(self)
             
            return dispatcher
         }
     }
     
+    func addEventListener(eventName: String, listener: ((_ event: Event) -> Void)?) {
+        dispatcher.addEventListener(eventName: eventName, listener: listener)
+    }
+    
     dynamic
     fileprivate func touchGesture(e: UITapGestureRecognizer) {
         dispatcher.dispatchEvent(e: Event(name: Event.EventName.onClick))
+    }
+}
+
+extension UIView {
+    
+    enum RecognizerType: String {
+        case tap = "UITap​Gesture​Recognizer"
+        case swipe = "UISwipe​Gesture​Recognizer"
+        case pich = "UIPinch​Gesture​Recognizer"
+        case rotation = "UIPinch​UIRotation​Gesture​Recognizer​Recognizer"
+        case longPress = "UILong​Press​Gesture​Recognizer"
+        case none = "none"
+        
+    }
+    
+    func addGestureListener(recognizerType: RecognizerType, listener: ((_ event: Event) -> Void)?) {
+        
+        var recognizers = dispatcher.data as? [UIGestureRecognizer]
+        
+        if recognizers == nil {
+            recognizers = [UIGestureRecognizer]()
+        }
+        
+        var recognizer = UIGestureRecognizer()
+        
+        switch recognizerType {
+        case .tap:
+            recognizer = UITapGestureRecognizer()
+        case .longPress:
+            recognizer = UILongPressGestureRecognizer()
+        case .swipe:
+            recognizer = UISwipeGestureRecognizer()
+        default:
+            recognizer = UIGestureRecognizer()
+        }
+        
+        recognizer.addTarget(self, action:  #selector(self.anyGesture))
+        
+        recognizers?.append(recognizer)
+        
+        self.addGestureRecognizer(recognizer)
+        
+        dispatcher.addEventListener(eventName: recognizerType.rawValue, listener: listener)
+    }
+    
+    dynamic
+    fileprivate func anyGesture(e: UIGestureRecognizer) {
+        
+        var event = RecognizerType.tap
+        
+        switch e {
+        case is UITapGestureRecognizer:
+            event = .tap
+        case is UILongPressGestureRecognizer:
+            event = .longPress
+        case is UISwipeGestureRecognizer:
+            event = .swipe
+        default:
+            event = .none
+        }
+        
+        dispatcher.dispatchEvent(e: Event(name: event.rawValue, sender: e))
     }
 }
