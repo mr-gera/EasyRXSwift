@@ -8,6 +8,25 @@
 
 import UIKit
 
+private var dispatcherKey : UInt8 = 8
+
+func getAssociatedObject<ValueType: AnyObject>(
+    base: AnyObject,
+    key: UnsafePointer<UInt8>,
+    defaultValue : ValueType)
+    -> ValueType? {
+        if let associated = objc_getAssociatedObject(base, key)
+            as? ValueType { return associated }
+        return defaultValue
+}
+func associate<ValueType: AnyObject>(
+    base: AnyObject,
+    key: UnsafePointer<UInt8>,
+    value: ValueType) {
+    objc_setAssociatedObject(base, key, value,
+                             .OBJC_ASSOCIATION_RETAIN)
+}
+
 class Event {
     
     var name = ""
@@ -27,17 +46,29 @@ extension Event {
     }
 }
 
+
 class EventDispatcher {
+
+    class EventListener {
+        var listeningObject: AnyObject? = nil
+        var onEvent: OnEvent? = nil
+    }
+
     
     // MARK: - Alias for OnEvent pattern
     public typealias OnEvent = (_ event: Event) -> Void
     
     
     // MARK: - Private Properties
-    fileprivate static let sharedPrivate = EventDispatcher()
-    fileprivate var eventListeners = [String:[OnEvent?]]()
+    static let shared = EventDispatcher()
+    
+    fileprivate static let nulleReference: EventDispatcher? = nil
+    
+    fileprivate var eventListenersDictionary = [String:[EventListener]]()
+    
     fileprivate var dispatchersOwners = [AnyObject]()
     fileprivate var dispatchers = [EventDispatcher]()
+    
     
     // MARK: - Public Properties
     
@@ -46,16 +77,23 @@ class EventDispatcher {
     
     // MARK: - Public Type Methods
     
-    func dispatchEvent(e: Event) {
+    public init(defaultData: Bool = false) {
         
-        eventListeners.forEach {
-            eventName, onEvents in
+        if defaultData {
+            data = 1
+        }
+    }
+    
+    func dispatchEvent(e: Event) {
+
+        eventListenersDictionary.forEach {
+            eventName, eventListeners in
             
             if e.name == eventName {
-                onEvents.forEach {
-                    onEvent in
+                eventListeners.forEach {
+                    eventListener in
                     
-                    if let onEvent = onEvent {
+                    if let onEvent = eventListener.onEvent {
                         onEvent(e)
                     }
                 }
@@ -63,18 +101,81 @@ class EventDispatcher {
         }
     }
     
-    func addEventListener(eventName: String, listener: OnEvent?) {
+    func addEventListener(eventName: String, listeningObject: AnyObject, onEvent: OnEvent?) {
         
-        if var listenersArray = eventListeners[eventName] {
-            listenersArray.append(listener)
-            eventListeners[eventName] = listenersArray
+        removeEventListener(by: eventName, listeningObject: listeningObject)
+        
+        var listener = eventListener(by: eventName, listeningObject: listeningObject)
+        
+        var listenerFound = false
+        
+        if listener == nil {
+            listener = EventListener()
         } else {
-            eventListeners[eventName] = [listener]
+            listenerFound = true
+        }
+        
+        if let listener = listener {
+            listener.onEvent = onEvent
+            listener.listeningObject = listeningObject
+        }
+        
+        if !listenerFound, let listener = listener {
+            if eventListenersDictionary[eventName] == nil {
+                eventListenersDictionary[eventName] = [listener]
+            } else {
+                eventListenersDictionary[eventName]?.append(listener)
+            }
+        }
+        
+    }
+
+    func removeEventListener(listeningObject: AnyObject) {
+        
+        eventListenersDictionary.forEach {
+            eventName, listeners in
+            
+            removeEventListener(by: eventName, listeningObject: listeningObject)
         }
     }
     
+    func removeEventListener(by eventName: String, listeningObject: AnyObject) {
+        
+        var index = 0
+        
+        if var listeners = eventListenersDictionary[eventName] {
+            listeners.forEach {
+                listener in
+                
+                if listener.listeningObject === listeningObject {
+                    listeners.remove(at: index)
+                }
+                
+                index += 1
+            }
+            
+            eventListenersDictionary[eventName] = listeners
+        }
+        
+    }
+
     
     // MARK: - Private Properties
+    
+    fileprivate func eventListener(by eventName: String, listeningObject: AnyObject?) -> EventListener? {
+        
+        if let listeners = eventListenersDictionary[eventName] {
+            
+            for listener in listeners {
+                
+                if listener.listeningObject === listeningObject {
+                    return listener
+                }
+            }
+        }
+        
+        return nil
+    }
     
     fileprivate func registerNewDispatcher(_ owner: AnyObject) -> EventDispatcher {
         if let dispatcher = getRegisteredDispatcher(owner: owner) {
@@ -97,7 +198,6 @@ class EventDispatcher {
         
         return nil
     }
-
 }
 
 extension NSObject {
@@ -105,15 +205,50 @@ extension NSObject {
     var dispatcher: EventDispatcher {
         
         get {
+            let defaultDispatcher = EventDispatcher(defaultData: true)
             
-           let dispatcher = EventDispatcher.sharedPrivate.registerNewDispatcher(self)
+            if let storedDispatcher = getAssociatedObject(base: self, key: &dispatcherKey, defaultValue: defaultDispatcher) {
+                
+                associate(base: self, key: &dispatcherKey, value: storedDispatcher)
+                
+                if defaultDispatcher === storedDispatcher {
+                    print("used default")
+                }
+                
+                return storedDispatcher
+                
+            } else {
+                let newDispatcher = EventDispatcher()
+                associate(base: self, key: &dispatcherKey, value: newDispatcher)
+                return newDispatcher
+            }
             
-           return dispatcher
         }
     }
     
-    func addEventListener(eventName: String, listener: ((_ event: Event) -> Void)?) {
-        dispatcher.addEventListener(eventName: eventName, listener: listener)
+    func removeEventListener(listeningObject: AnyObject) {
+        dispatcher.removeEventListener(listeningObject: listeningObject)
+    }
+    
+    func removeEventListener(by eventName: String, listeningObject: AnyObject) {
+        dispatcher.removeEventListener(by: eventName, listeningObject: listeningObject)
+    }
+    
+    func addEventListener(eventName: String, listeningObject: AnyObject, onEvent: ((_ event: Event) -> Void)?) {
+        dispatcher.addEventListener(eventName: eventName, listeningObject: listeningObject, onEvent: onEvent)
+    }
+
+    
+    func addEventListener(eventNames: [String], listeningObject: AnyObject, onEvent: ((_ event: Event) -> Void)?) {
+        eventNames.forEach {
+            eventName in
+            
+            dispatcher.addEventListener(eventName: eventName, listeningObject: listeningObject, onEvent: onEvent)
+        }
+    }
+    
+    func dispatchEvent(e: Event) {
+        dispatcher.dispatchEvent(e: e)
     }
     
     dynamic
@@ -134,7 +269,7 @@ extension UIView {
         
     }
     
-    func addGestureListener(recognizerType: RecognizerType, listener: ((_ event: Event) -> Void)?) {
+    func addGestureListener(recognizerType: RecognizerType, listeningObject: AnyObject, onEvent: ((_ event: Event) -> Void)?) {
         
         var recognizers = dispatcher.data as? [UIGestureRecognizer]
         
@@ -161,13 +296,14 @@ extension UIView {
         
         self.addGestureRecognizer(recognizer)
         
-        dispatcher.addEventListener(eventName: recognizerType.rawValue, listener: listener)
+        dispatcher.addEventListener(eventName: recognizerType.rawValue, listeningObject:  listeningObject, onEvent: onEvent)
+
     }
     
     dynamic
     fileprivate func anyGesture(e: UIGestureRecognizer) {
         
-        var event = RecognizerType.tap
+        var event = RecognizerType.none
         
         switch e {
         case is UITapGestureRecognizer:
