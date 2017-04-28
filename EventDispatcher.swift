@@ -8,29 +8,11 @@
 
 import UIKit
 
-private var dispatcherKey : UInt8 = 8
-
-func getAssociatedObject<ValueType: AnyObject>(
-    base: AnyObject,
-    key: UnsafePointer<UInt8>,
-    defaultValue : ValueType)
-    -> ValueType? {
-        if let associated = objc_getAssociatedObject(base, key)
-            as? ValueType { return associated }
-        return defaultValue
-}
-func associate<ValueType: AnyObject>(
-    base: AnyObject,
-    key: UnsafePointer<UInt8>,
-    value: ValueType) {
-    objc_setAssociatedObject(base, key, value,
-                             .OBJC_ASSOCIATION_RETAIN)
-}
-
 class Event {
     
     var name = ""
     var sender: AnyObject? = nil
+    var data: Any? = nil
     
     // MARK: - Public
     public init(name: String, sender: AnyObject? = nil) {
@@ -39,25 +21,16 @@ class Event {
     }
 }
 
-extension Event {
-    struct EventName {
-        static let onClick = "onClick"
-        static let onGesture = "onGesture"
-    }
-}
-
-
 class EventDispatcher {
-
+    
+    // MARK: - Alias for OnEvent pattern
+    
+    public typealias OnEvent =  (_ event: Event) -> Any?
+    
     class EventListener {
         var listeningObject: AnyObject? = nil
         var onEvent: OnEvent? = nil
     }
-
-    
-    // MARK: - Alias for OnEvent pattern
-    public typealias OnEvent = (_ event: Event) -> Void
-    
     
     // MARK: - Private Properties
     static let shared = EventDispatcher()
@@ -84,21 +57,22 @@ class EventDispatcher {
         }
     }
     
-    func dispatchEvent(e: Event) {
+    @discardableResult
+    func dispatchEvent(e: Event) -> Any? {
 
-        eventListenersDictionary.forEach {
-            eventName, eventListeners in
+        for (eventName, eventListeners) in eventListenersDictionary {
             
             if e.name == eventName {
-                eventListeners.forEach {
-                    eventListener in
+                for eventListener in eventListeners {
                     
                     if let onEvent = eventListener.onEvent {
-                        onEvent(e)
+                        return onEvent(e)
                     }
                 }
             }
         }
+        
+        return nil
     }
     
     func addEventListener(eventName: String, listeningObject: AnyObject, onEvent: OnEvent?) {
@@ -127,7 +101,6 @@ class EventDispatcher {
                 eventListenersDictionary[eventName]?.append(listener)
             }
         }
-        
     }
 
     func removeEventListener(listeningObject: AnyObject) {
@@ -197,125 +170,5 @@ class EventDispatcher {
         }
         
         return nil
-    }
-}
-
-extension NSObject {
-    
-    var dispatcher: EventDispatcher {
-        
-        get {
-            let defaultDispatcher = EventDispatcher(defaultData: true)
-            
-            if let storedDispatcher = getAssociatedObject(base: self, key: &dispatcherKey, defaultValue: defaultDispatcher) {
-                
-                associate(base: self, key: &dispatcherKey, value: storedDispatcher)
-                
-                if defaultDispatcher === storedDispatcher {
-                    print("used default")
-                }
-                
-                return storedDispatcher
-                
-            } else {
-                let newDispatcher = EventDispatcher()
-                associate(base: self, key: &dispatcherKey, value: newDispatcher)
-                return newDispatcher
-            }
-            
-        }
-    }
-    
-    func removeEventListener(listeningObject: AnyObject) {
-        dispatcher.removeEventListener(listeningObject: listeningObject)
-    }
-    
-    func removeEventListener(by eventName: String, listeningObject: AnyObject) {
-        dispatcher.removeEventListener(by: eventName, listeningObject: listeningObject)
-    }
-    
-    func addEventListener(eventName: String, listeningObject: AnyObject, onEvent: ((_ event: Event) -> Void)?) {
-        dispatcher.addEventListener(eventName: eventName, listeningObject: listeningObject, onEvent: onEvent)
-    }
-
-    
-    func addEventListener(eventNames: [String], listeningObject: AnyObject, onEvent: ((_ event: Event) -> Void)?) {
-        eventNames.forEach {
-            eventName in
-            
-            dispatcher.addEventListener(eventName: eventName, listeningObject: listeningObject, onEvent: onEvent)
-        }
-    }
-    
-    func dispatchEvent(e: Event) {
-        dispatcher.dispatchEvent(e: e)
-    }
-    
-    dynamic
-    fileprivate func touchGesture(e: UITapGestureRecognizer) {
-        dispatcher.dispatchEvent(e: Event(name: Event.EventName.onClick))
-    }
-}
-
-extension UIView {
-    
-    enum RecognizerType: String {
-        case tap = "UITap​Gesture​Recognizer"
-        case swipe = "UISwipe​Gesture​Recognizer"
-        case pich = "UIPinch​Gesture​Recognizer"
-        case rotation = "UIPinch​UIRotation​Gesture​Recognizer​Recognizer"
-        case longPress = "UILong​Press​Gesture​Recognizer"
-        case none = "none"
-        
-    }
-    
-    func addGestureListener(recognizerType: RecognizerType, listeningObject: AnyObject, onEvent: ((_ event: Event) -> Void)?) {
-        
-        var recognizers = dispatcher.data as? [UIGestureRecognizer]
-        
-        if recognizers == nil {
-            recognizers = [UIGestureRecognizer]()
-        }
-        
-        var recognizer = UIGestureRecognizer()
-        
-        switch recognizerType {
-        case .tap:
-            recognizer = UITapGestureRecognizer()
-        case .longPress:
-            recognizer = UILongPressGestureRecognizer()
-        case .swipe:
-            recognizer = UISwipeGestureRecognizer()
-        default:
-            recognizer = UIGestureRecognizer()
-        }
-        
-        recognizer.addTarget(self, action:  #selector(self.anyGesture))
-        
-        recognizers?.append(recognizer)
-        
-        self.addGestureRecognizer(recognizer)
-        
-        dispatcher.addEventListener(eventName: recognizerType.rawValue, listeningObject:  listeningObject, onEvent: onEvent)
-
-    }
-    
-    dynamic
-    fileprivate func anyGesture(e: UIGestureRecognizer) {
-        
-        var event = RecognizerType.none
-        
-        switch e {
-        case is UITapGestureRecognizer:
-            event = .tap
-        case is UILongPressGestureRecognizer:
-            event = .longPress
-        case is UISwipeGestureRecognizer:
-            event = .swipe
-        default:
-            event = .none
-        }
-        
-        dispatcher.dispatchEvent(e: Event(name: event.rawValue, sender: e))
     }
 }
