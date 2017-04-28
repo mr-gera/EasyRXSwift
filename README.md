@@ -1,4 +1,4 @@
-# Swift-EventListener
+# EasyRXSwift
 
 # EXAMPLE
 # TableView Data binding 
