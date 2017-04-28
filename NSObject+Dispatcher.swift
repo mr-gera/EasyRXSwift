@@ -75,10 +75,12 @@ extension NSObject {
         }
     }
     
-    func dispatchEvent(e: Event) -> Any? {
+    @discardableResult
+    func dispatchEvent(_ e: Event) -> Any? {
         return dispatcher.dispatchEvent(e: e)
     }
     
+    @discardableResult
     func dispatchEvent(with name: String) -> Any? {
         return dispatcher.dispatchEvent(e: Event(name: name))
     }
