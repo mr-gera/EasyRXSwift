@@ -90,6 +90,7 @@ Just add a couple of "set" methods to bind data and delegate your TableView
 
 
 THE OUTPUT IS 
+
 hello, data is nil!
 
 I'm String Data!
