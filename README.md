@@ -87,11 +87,15 @@ Just add a couple of "set" methods to bind data and delegate your TableView
         object.testDispatchWithData()
         object.testDispatchResult()
 
-/////////////////////////////////////////////////////////////
-// THE OUTPUT IS 
+
+
+THE OUTPUT IS 
 hello, data is nil!
+
 I'm String Data!
+
 hello, data is nil!
+
 I'm Int Value! 10000000
 
     
