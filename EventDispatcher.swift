@@ -1,6 +1,6 @@
 //
 //  EventDispatcher.swift
-//  BetGame
+//  EasyRXSwift
 //
 //  Created by Alexander Gerasimov on 3/30/17.
 //  Copyright © 2017 zfort. All rights reserved.
