@@ -1,4 +1,17 @@
-# EasyRXSwift
+# SwiftListener
+
+# EXAMPLE  - Segue Listening. Easy way to set data in segues' destinations 
+
+- Just set "BaseSegue" as a class of your segue
+- In your ViewController add listener:
+
+        addSegueListener() {
+            (vc: SecondViewController) in
+            
+            vc.view.backgroundColor = .red
+        }
+        
+Where SecondViewController is a segue's destination. 
 
 # EXAMPLE  - TableView Data binding 
 
