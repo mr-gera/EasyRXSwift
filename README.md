@@ -1,6 +1,6 @@
 # SwiftListener
 
-# EXAMPLE  - Segue Listening. Easy way to set data in segues' destinations 
+# EXAMPLE  - Segue Listening. Easy way to pass data to segue's destination controller
 
 - Just set "BaseSegue" as a class of your segue
 - In your ViewController add listener:
