@@ -1,6 +1,6 @@
 //
 //  NSObject+Dispatcher.swift
-//  EasyRXSwift
+//  BetGame
 //
 //  Created by Alexander Gerasimov on 4/28/17.
 //  Copyright © 2017 zfort. All rights reserved.
@@ -53,6 +53,9 @@ extension NSObject {
         }
     }
     
+    func cleanListeners() {
+        dispatcher.cleanListeners()
+    }
     
     func removeEventListener(listeningObject: AnyObject) {
         dispatcher.removeEventListener(listeningObject: listeningObject)
@@ -60,6 +63,10 @@ extension NSObject {
     
     func removeEventListener(by eventName: String, listeningObject: AnyObject) {
         dispatcher.removeEventListener(by: eventName, listeningObject: listeningObject)
+    }
+    
+    func addClassedEventListener(eventNameObject: Any, listeningObject: AnyObject, onEvent: ((_ event: Event) -> Any?)?) {
+        dispatcher.addEventListener(eventName: String(describing:eventNameObject), listeningObject: listeningObject, onEvent: onEvent)
     }
     
     func addEventListener(eventName: String, listeningObject: AnyObject, onEvent: ((_ event: Event) -> Any?)?) {
@@ -73,6 +80,19 @@ extension NSObject {
             
             dispatcher.addEventListener(eventName: eventName, listeningObject: listeningObject, onEvent: onEvent)
         }
+    }
+    
+    func addSegueListener<T: UIViewController>(closure: @escaping (_ obj: T) -> Void) {
+        
+        addClassedEventListener(eventNameObject: T.classForCoder(), listeningObject: self) {
+            event in
+            
+            let vc = event.dataObject as! T
+            closure(vc)
+            
+            return nil
+        }
+        
     }
     
     @discardableResult

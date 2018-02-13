@@ -1,6 +1,6 @@
 //
 //  UIView+Dispatcher.swift
-//  EasyRXSwift
+//  BetGame
 //
 //  Created by Alexander Gerasimov on 4/28/17.
 //  Copyright © 2017 zfort. All rights reserved.
@@ -45,7 +45,7 @@ extension UIView {
         }
         
         recognizer.addTarget(self, action:  #selector(self.anyGesture))
-        
+        recognizer.cancelsTouchesInView = false
         recognizers?.append(recognizer)
         
         self.addGestureRecognizer(recognizer)
@@ -55,7 +55,7 @@ extension UIView {
     }
     
     // MARK: - Private Type Methods
-    dynamic
+    @objc dynamic
     fileprivate func anyGesture(e: UIGestureRecognizer) {
         
         var event = RecognizerType.none
@@ -71,6 +71,6 @@ extension UIView {
             event = .none
         }
         
-        dispatcher.dispatchEvent(e: Event(name: event.rawValue, sender: e))
+        dispatcher.dispatchEvent(e: Event(name: event.rawValue, sender: self))
     }
 }

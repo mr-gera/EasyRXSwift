@@ -1,6 +1,6 @@
 //
 //  UITableView+Dispatcher.swift
-//  EasyRXSwift
+//  BetGame
 //
 //  Created by Alexander Gerasimov on 4/28/17.
 //  Copyright © 2017 zfort. All rights reserved.

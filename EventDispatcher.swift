@@ -1,6 +1,6 @@
 //
 //  EventDispatcher.swift
-//  EasyRXSwift
+//  BetGame
 //
 //  Created by Alexander Gerasimov on 3/30/17.
 //  Copyright © 2017 zfort. All rights reserved.
@@ -13,6 +13,7 @@ class Event {
     var name = ""
     var sender: AnyObject? = nil
     var data: Any? = nil
+    var dataObject: AnyObject? = nil
     
     // MARK: - Public
     public init(name: String, sender: AnyObject? = nil) {
@@ -66,13 +67,21 @@ class EventDispatcher {
                 for eventListener in eventListeners {
                     
                     if let onEvent = eventListener.onEvent {
-                        return onEvent(e)
+                        _ = onEvent(e)
                     }
                 }
             }
         }
         
         return nil
+    }
+    
+    func addEventListener(eventNames: [String], listeningObject: AnyObject, onEvent: ((_ event: Event) -> Any?)?) {
+        eventNames.forEach {
+            eventName in
+            
+            addEventListener(eventName: eventName, listeningObject: listeningObject, onEvent: onEvent)
+        }
     }
     
     func addEventListener(eventName: String, listeningObject: AnyObject, onEvent: OnEvent?) {
@@ -103,6 +112,10 @@ class EventDispatcher {
         }
     }
 
+    func cleanListeners() {        
+        eventListenersDictionary.removeAll()
+    }
+    
     func removeEventListener(listeningObject: AnyObject) {
         
         eventListenersDictionary.forEach {
@@ -123,6 +136,25 @@ class EventDispatcher {
                 if listener.listeningObject === listeningObject {
                     listeners.remove(at: index)
                 }
+                
+                index += 1
+            }
+            
+            eventListenersDictionary[eventName] = listeners
+        }
+        
+    }
+    
+    
+    func removeEventListener(by eventName: String) {
+        
+        var index = 0
+        
+        if var listeners = eventListenersDictionary[eventName] {
+            listeners.forEach {
+                listener in
+                
+                listeners.remove(at: index)
                 
                 index += 1
             }
