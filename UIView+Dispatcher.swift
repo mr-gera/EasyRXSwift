@@ -11,7 +11,7 @@ import UIKit
 
 extension UIView {
     
-    
+     // MARK: - ENUM
     enum RecognizerType: String {
         case tap = "UITap​Gesture​Recognizer"
         case swipe = "UISwipe​Gesture​Recognizer"

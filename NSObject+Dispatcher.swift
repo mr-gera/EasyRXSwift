@@ -28,6 +28,7 @@ func associate<ValueType: AnyObject>(
 
 extension NSObject {
     
+    // MARK: - Public Properties
     var dispatcher: EventDispatcher {
         
         get {
@@ -53,8 +54,35 @@ extension NSObject {
         }
     }
     
+    // MARK: - Public Type Methods
+    
     func cleanListeners() {
         dispatcher.cleanListeners()
+    }
+    
+    func leaveDispatcher() {
+        dispatcher.removeEventListener(listeningObject: self)
+        EventDispatcher.shared.removeEventListener(listeningObject: self)
+        cleanListeners()
+        
+        var view: UIView? = nil
+        
+        if let controller = self as? UIViewController {
+            view = controller.view
+        } else {
+            if let selfView = self as? UIView {
+                view = selfView
+            }
+        }
+        
+        guard let parentalView = view else {
+            return
+        }
+        
+        parentalView.subviews.forEach {
+            view in
+            view.leaveDispatcher()
+        }
     }
     
     func removeEventListener(listeningObject: AnyObject) {
